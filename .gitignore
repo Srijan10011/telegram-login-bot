@@ -1,3 +1,2 @@
 __pycache__/
 .env
-sessions/  # Add this to ignore session files
