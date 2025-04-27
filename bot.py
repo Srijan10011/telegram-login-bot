@@ -9,6 +9,34 @@ from telegram.ext import (
     ContextTypes, ConversationHandler
 )
 
+
+
+CREDITS_FILE = "credits.json"  # File to store user credits
+
+# Load credits from the JSON file
+def load_credits():
+    if os.path.exists(CREDITS_FILE):
+        with open(CREDITS_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+# Save credits back to the file
+def save_credits(credits_data):
+    with open(CREDITS_FILE, 'w') as f:
+        json.dump(credits_data, f)
+
+# Function to add credit to the user
+async def add_credit(user_id, amount):
+    credits = load_credits()
+    
+    if user_id not in credits:
+        credits[user_id] = 0
+    
+    credits[user_id] += amount
+    save_credits(credits)
+    
+    return credits[user_id]  # Return the updated credit balance
+
 # ---- Your Telegram API keys ----
 API_ID = 28863669  # <-- Replace with your API ID (integer)
 API_HASH = "72b4ff10bcce5ba17dba09f8aa526a44"  # <-- Replace with your API HASH (string)
