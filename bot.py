@@ -8,6 +8,8 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 from telethon import TelegramClient, errors
 import dropbox
+from telethon.network.connection import ConnectionTcpMTProxy
+
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from dotenv import load_dotenv
