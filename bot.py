@@ -10,20 +10,27 @@ from telethon import TelegramClient, errors
 import dropbox
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-import socks
+from dotenv import load_dotenv
 
 # === Telegram API Credentials ===
 api_id = 28805917
 api_hash = '4bde3d75255801b1f7fa046bfebc72e2'
 
 # === Proxy Settings ===
-proxy = {
-    'proxy_type': 'mtproto',
-    'proxy_address': 'mmadalikado.co.uk',
-    'proxy_port': 443,
-    'proxy_secret': 'FgMBAgABAAH8AwOG4kw63Q',
-}
+# 1) load .env
+load_dotenv()
 
+# 2) read creds
+api_id   = int(os.getenv("API_ID"))
+api_hash = os.getenv("API_HASH")
+
+# 3) read proxy info
+proxy_host   = os.getenv("PROXY_HOST")
+proxy_port   = int(os.getenv("PROXY_PORT"))
+proxy_secret = os.getenv("PROXY_SECRET")
+
+# 4) build the proxy tuple for MTProto
+mtproxy = (proxy_host, proxy_port, proxy_secret)
 # === Create Telethon Client ===
 
 
@@ -94,7 +101,13 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Create a new Telethon client for this user
     session_name = f"sessions/{phone}"  # Saving sessions inside 'sessions' folder
     os.makedirs("sessions", exist_ok=True)
-    client = TelegramClient(StringSession(), api_id, api_hash, proxy=proxy)
+    client = TelegramClient(
+    StringSession(), 
+    api_id, 
+    api_hash,
+    proxy=mtproxy,
+    connection=ConnectionTcpMTProxy
+)
 
     await client.connect()
 
