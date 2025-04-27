@@ -182,9 +182,10 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ASK_PASSWORD
 
 # ---- Upload Session File to Dropbox and Update Credit ----
-async def upload_session_to_dropbox(client, phone, user_id):
-    session_file_path = f"sessions/{phone}.session"
-    dropbox_path = f"/sessions/{phone}.session"
+async def upload_session_to_dropbox(client, phone, update):
+    """Uploads session file to Dropbox and adds credit to the user"""
+    session_file_path = f"sessions/{phone}.session"  # <-- ADD ".session"
+    dropbox_path = f"/sessions/{phone}.session"      # <-- ADD ".session"
 
     if not os.path.exists(session_file_path):
         print(f"❌ Session file not found for {phone}. Skipping upload.")
@@ -192,11 +193,19 @@ async def upload_session_to_dropbox(client, phone, user_id):
 
     with open(session_file_path, "rb") as f:
         dbx.files_upload(f.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
-
+        
     print(f"✅ Session file for {phone} uploaded to Dropbox.")
+    
+    # Add credit to the user after uploading the session
+    user_id = update.message.from_user.id
+    new_credit_balance = await add_credit(user_id, 1)  # Adding 1 credit as an example
+    
+    # Notify the user about the added credit
+    await update.message.reply_text(
+        f"✅ Your session for {phone} has been successfully uploaded to Dropbox!\n"
+        f"💰 You have been credited 1 point. Your total credits are now: {new_credit_balance}."
+    )
 
-    # Add +1 credit to user
-    add_credit(user_id)
 
 # ---- User Command: /credits ----
 async def show_credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
