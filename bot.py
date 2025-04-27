@@ -17,12 +17,7 @@ api_id = 28805917
 api_hash = '4bde3d75255801b1f7fa046bfebc72e2'
 
 # === Proxy Settings ===
-  proxy = {
-        'proxy_type': 'mtproto',
-        'proxy_address': proxy_address,
-        'proxy_port': proxy_port,
-        'proxy_secret': proxy_secret,
-    }
+
 
 # === Create Telethon Client ===
 
