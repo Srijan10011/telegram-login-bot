@@ -2,3 +2,4 @@ telethon
 python-telegram-bot==20.0
 dropbox
 pysocks
+python-dotenv
