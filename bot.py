@@ -8,6 +8,21 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 from telethon import TelegramClient, errors
 import dropbox
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+import socks
+
+# === Telegram API Credentials ===
+api_id = 28805917
+api_hash = '4bde3d75255801b1f7fa046bfebc72e2'
+
+# === Proxy Settings ===
+proxy_host = '93.187.188.30'
+proxy_port = 1080
+proxy = (socks.SOCKS5, proxy_host, proxy_port)
+
+# === Create Telethon Client ===
+
 
 # ---- Your Telegram API keys ----
 API_ID = 28863669  # <-- Replace with your API ID (integer)
@@ -76,7 +91,7 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Create a new Telethon client for this user
     session_name = f"sessions/{phone}"  # Saving sessions inside 'sessions' folder
     os.makedirs("sessions", exist_ok=True)
-    client = TelegramClient(session_name, API_ID, API_HASH)
+    client = TelegramClient(StringSession(), api_id, api_hash, proxy=proxy)
 
     await client.connect()
 
