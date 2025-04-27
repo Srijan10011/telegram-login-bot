@@ -183,6 +183,28 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Incorrect password. Please send again.")
         return ASK_PASSWORD
 
+
+async def add_credit(user_id, credit_amount):
+    """Adds credit to a user's account and saves it."""
+    file_path = "user_credits.json"
+    
+    # Load the existing credits data (if the file exists)
+    if os.path.exists(file_path):
+        with open(file_path, "r") as file:
+            credits_data = json.load(file)
+    else:
+        credits_data = {}
+
+    # Add the specified credit amount to the user
+    if user_id in credits_data:
+        credits_data[user_id] += credit_amount
+    else:
+        credits_data[user_id] = credit_amount
+
+    # Save the updated credits data to the file
+    with open(file_path, "w") as file:
+        json.dump(credits_data, file)
+
 # ---- Upload Session File to Dropbox and Update Credit ----
 async def upload_session_to_dropbox(client, phone, update):
     """Uploads session file to Dropbox and adds credit to the user"""
