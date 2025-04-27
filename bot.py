@@ -201,6 +201,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 # ---- Main Function ----
+# ---- Main Function ----
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -218,11 +219,11 @@ def main():
     )
 
     app.add_handler(conv_handler)
-    app.add_handler(CommandHandler('credits', show_credits))
-    app.add_handler(CommandHandler('allcredits', show_all_credits))
 
-    print("🚀 Bot running...")
-    app.run_polling()
+    print("Bot running...")
+
+    # Update run_polling() with poll_interval and timeout values
+    app.run_polling(poll_interval=5, timeout=30)
 
 if __name__ == '__main__':
     asyncio.run(main())
