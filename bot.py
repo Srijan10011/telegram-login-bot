@@ -102,8 +102,7 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     StringSession(), 
     api_id, 
     api_hash,
-    proxy=mtproxy,
-    connection=ConnectionTcpMTProxyAbridged
+    
 )
 
     await client.connect()
