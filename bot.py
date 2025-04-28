@@ -106,7 +106,7 @@ client = TelegramClient(
 )
 
     
-)
+
 
     await client.connect()
 
