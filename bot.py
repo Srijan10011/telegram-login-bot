@@ -98,10 +98,13 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Create a new Telethon client for this user
     session_name = f"sessions/{phone}"  # Saving sessions inside 'sessions' folder
     os.makedirs("sessions", exist_ok=True)
-    client = TelegramClient(
-    StringSession(), 
-    api_id, 
+    session_file = f"sessions/{phone}.session"  # Save to file, not memory
+client = TelegramClient(
+    session_file,
+    api_id,
     api_hash,
+)
+
     
 )
 
