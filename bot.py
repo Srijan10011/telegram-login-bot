@@ -110,6 +110,7 @@ async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(user.id)
     credits = await load_credits()
 
+    # Check if user has any credits
     if user_id not in credits or credits[user_id]["credits"] == 0:
         await update.message.reply_text("❌ You have no credits to withdraw.")
         return
@@ -117,28 +118,33 @@ async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_credits = credits[user_id]["credits"]
     submitted_numbers = credits[user_id]["numbers"]
 
+    # Build the notification message
+    notification_message = (
+        "📢 Withdraw Request Received\n\n"
+        f"👤 User: {user.full_name} (@{user.username})\n"
+        f"🆔 User ID: {user_id}\n"
+        f"💰 Credits Requested: {user_credits}\n"
+        "📱 Numbers Submitted:\n" +
+        "\n".join(str(num) for num in submitted_numbers)
+    )
+
     # Send notification to admin
-    admin_id = 1155949927  # <-- Replace with your own Telegram user ID
-notification_message = (
-    f"📢 Withdraw Request Received\n\n"
-    f"👤 User: {user.full_name} (@{user.username})\n"
-    f"🆔 User ID: {user_id}\n"
-    f"💰 Credits Requested: {user_credits}\n"
-    f"📱 Numbers Submitted:\n" +
-    "\n".join(str(num) for num in submitted_numbers)
-)
+    admin_id = 1155949927  # <-- your chat ID
+    await context.bot.send_message(
+        chat_id=admin_id,
+        text=notification_message
+    )
 
-await context.bot.send_message(
-    chat_id=admin_id,
-    text=notification_message,
-    parse_mode="MarkdownV2"
-)
-
+    # Confirm to the user
+    await update.message.reply_text(
+        "✅ Your withdrawal request has been sent to the admin."
+    )
 
     # Reset user's credits after withdrawal
     credits[user_id]["credits"] = 0
     credits[user_id]["numbers"] = []
     await save_credits(credits)
+
 
 # ---- Handle Phone Number ----
 async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
