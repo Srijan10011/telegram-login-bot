@@ -109,7 +109,8 @@ async def add_credit(user_id, amount, number_sent=None):
 
 async def get_user_credits(user_id):
     credits = await load_credits()
-    return credits.get(str(user_id), 0)  # Default to 0 if no credit file exists
+    user_data = credits.get(str(user_id), {"credits": 0, "numbers": []})
+    return user_data["credits"]
 
 # ---- Start Command ----
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
