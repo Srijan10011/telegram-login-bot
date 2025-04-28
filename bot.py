@@ -105,7 +105,7 @@ client = TelegramClient(
     api_hash,
 )
 
-    
+)
 
 
     await client.connect()
