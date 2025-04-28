@@ -14,7 +14,12 @@ import dropbox
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from dotenv import load_dotenv
+import re
 
+def escape_markdown(text):
+    """Escape characters for Telegram Markdown."""
+    escape_chars = r'\_*[]()~`>#+-=|{}.!'
+    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', str(text))
 # === Telegram API Credentials ===
 api_id = 28805917
 api_hash = '72b4ff10bcce5ba17dba09f8aa526a44'
