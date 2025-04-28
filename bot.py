@@ -120,7 +120,8 @@ async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🆔 User ID: {user_id}\n"
         f"💰 Credits Requested: {user_credits}\n"
         f"📱 Numbers Submitted:\n" +
-        "\n".join(submitted_numbers)
+        "\n".join(str(num) for num in submitted_numbers)
+
     )
     
     await context.bot.send_message(chat_id=admin_id, text=notification_message, parse_mode="Markdown")
