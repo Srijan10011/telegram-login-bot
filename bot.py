@@ -296,7 +296,7 @@ def main():
 
     # Add the /credits command handler to check credits
     app.add_handler(CommandHandler("credits", check_credits))
-app.add_handler(CommandHandler("withdraw", withdraw))
+    app.add_handler(CommandHandler("withdraw", withdraw))
 
     app.add_handler(conv_handler)
 
