@@ -55,41 +55,36 @@ ASK_PHONE, ASK_CODE, ASK_PASSWORD = range(3)
 user_sessions = {}
 
 # ---- Path to store credit files ----
-CREDIT_FILE_PATH = "credits"
+CREDITS_FILE = "/credits.json"
 
-# Make sure the credits directory exists
-os.makedirs(CREDIT_FILE_PATH, exist_ok=True)
+async def load_credits():
+    try:
+        _, res = dbx.files_download(CREDITS_FILE)
+        return json.loads(res.content)
+    except dropbox.exceptions.ApiError as e:
+        if "not_found" in str(e.error).lower():
+            return {}
+        raise
 
-# ---- Add Credit to User ----
+async def save_credits(credits: dict):
+    dbx.files_upload(
+        json.dumps(credits).encode(),
+        CREDITS_FILE,
+        mode=dropbox.files.WriteMode("overwrite")
+    )
+    
 async def add_credit(user_id, amount):
-    file_path = f"{CREDIT_FILE_PATH}/{user_id}.json"
+    credits = await load_credits()
+    key = str(user_id)
+    credits[key] = credits.get(key, 0) + amount
+    await save_credits(credits)
+    return credits[key]
     
-    # Check if the user already has a credit file
-    if os.path.exists(file_path):
-        with open(file_path, "r") as f:
-            data = json.load(f)
-        # Increase the credit balance
-        data["credits"] += amount
-    else:
-        # If no credit file exists, create a new one with the initial amount
-        data = {"credits": amount}
-    
-    # Save the updated credits to the file
-    with open(file_path, "w") as f:
-        json.dump(data, f)
-    
-    return data["credits"]
-
 # ---- Get Credit for User ----
+
 async def get_user_credits(user_id):
-    file_path = f"{CREDIT_FILE_PATH}/{user_id}.json"
-    
-    if os.path.exists(file_path):
-        with open(file_path, "r") as f:
-            data = json.load(f)
-        return data["credits"]
-    else:
-        return 0  # Default to 0 if no credit file exists
+    credits = await load_credits()
+    return credits.get(str(user_id), 0)  # Default to 0 if no credit file exists
 
 # ---- Start Command ----
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
