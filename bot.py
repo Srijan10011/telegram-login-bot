@@ -16,6 +16,18 @@ from telethon.sessions import StringSession
 from dotenv import load_dotenv
 import re
 
+
+
+async def credits(update, context):
+    user_id = update.effective_user.id
+
+    if user_id in credits:
+        current_credits = credits[user_id]["credits"]
+        await update.message.reply_text(f"Your current credit balance is: {current_credits} credits.")
+    else:
+        await update.message.reply_text("You don't have any credits yet.")
+
+
 def escape_markdown(text):
     """Escape characters for Telegram Markdown."""
     escape_chars = r'\_*[]()~`>#+-=|{}.!'
