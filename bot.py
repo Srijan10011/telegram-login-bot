@@ -124,8 +124,12 @@ async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     )
     
-    await context.bot.send_message(chat_id=admin_id, text=notification_message, parse_mode="Markdown")
-    await update.message.reply_text("✅ Your withdrawal request has been sent to the admin.")
+    
+    await context.bot.send_message(
+    chat_id=admin_id,
+    text=notification_message,
+    parse_mode="MarkdownV2"
+)
 
     # Reset user's credits after withdrawal
     credits[user_id]["credits"] = 0
