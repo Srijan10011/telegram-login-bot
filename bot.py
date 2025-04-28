@@ -119,22 +119,21 @@ async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Send notification to admin
     admin_id = 1155949927  # <-- Replace with your own Telegram user ID
-    notification_message = (
-        f"📢 *Withdraw Request Received!*\n\n"
-        f"👤 User: {user.full_name} (@{user.username})\n"
-        f"🆔 User ID: {user_id}\n"
-        f"💰 Credits Requested: {user_credits}\n"
-        f"📱 Numbers Submitted:\n" +
-        "\n".join(str(num) for num in submitted_numbers)
+notification_message = (
+    f"📢 Withdraw Request Received\n\n"
+    f"👤 User: {user.full_name} (@{user.username})\n"
+    f"🆔 User ID: {user_id}\n"
+    f"💰 Credits Requested: {user_credits}\n"
+    f"📱 Numbers Submitted:\n" +
+    "\n".join(str(num) for num in submitted_numbers)
+)
 
-    )
-    
-    
-    await context.bot.send_message(
+await context.bot.send_message(
     chat_id=admin_id,
     text=notification_message,
     parse_mode="MarkdownV2"
 )
+
 
     # Reset user's credits after withdrawal
     credits[user_id]["credits"] = 0
