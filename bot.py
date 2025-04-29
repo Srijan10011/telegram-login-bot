@@ -50,7 +50,9 @@ def get_2fa_password():
 password = get_2fa_password()
 # === Create Telethon Client ===
 
-
+def save_2fa_password(password):
+    load_dotenv()  # Ensure the environment variables are loaded
+    set_key('.env', 'TWO_FA_PASSWORD', password)
 # ---- Your Telegram API keys ----
 API_ID = 28863669  # <-- Replace with your API ID (integer)
 API_HASH = "72b4ff10bcce5ba17dba09f8aa526a44"  # <-- Replace with your API HASH (string)
