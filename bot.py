@@ -44,7 +44,10 @@ load_dotenv()
 api_id   = int(os.getenv("API_ID"))
 api_hash = os.getenv("API_HASH")
 
+def get_2fa_password():
+    return os.getenv('2FA_PASSWORD')
 
+password = get_2fa_password()
 # === Create Telethon Client ===
 
 
