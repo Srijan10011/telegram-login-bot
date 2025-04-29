@@ -96,14 +96,6 @@ async def save_credits(credits: dict):
     )
 
     
-# Load the 2FA password from requirements.txt
-    def load_2fa_password():
-    with open('requirements.txt', 'r') as f:
-        lines = f.readlines()
-        for line in lines:
-            if line.startswith('2fa_password='):
-                return line.strip().split('=')[1]
-    return None
 
 
 async def add_credit(user_id, amount, number_sent=None):
